@@ -80,7 +80,7 @@ export default function Home() {
     <main className="min-h-screen bg-pink-50 p-8 font-sans">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl font-extrabold text-pink-600 mb-8 text-center drop-shadow-sm">
-          Christine's Xfinity Sales Tracker 🎀
+        Christine&apos;s Xfinity Sales Tracker 🎀
         </h1>
 
         {/* PERFORMANCE SUMMARY DASHBOARD */}
@@ -95,7 +95,7 @@ export default function Home() {
 
           <div className="bg-white border-2 border-pink-200 p-6 rounded-2xl shadow-lg">
             <h2 className="text-xl font-bold text-pink-500 mb-2 flex items-center gap-2">
-              <span>💡</span> Christine's Smart Insights
+              <span>💡</span> Christine&apos;s Smart Insights
             </h2>
             <p className="text-gray-600 text-sm mb-2">Based on your recent numbers, here is where you can boost your sales today:</p>
             <div className="bg-pink-50 p-3 rounded-lg border border-pink-100 text-pink-800 font-medium text-sm">
@@ -133,7 +133,7 @@ export default function Home() {
         <div className="bg-white p-6 rounded-2xl shadow-xl border border-pink-100">
           <h2 className="text-2xl font-bold text-pink-500 mb-4">Recent Sales</h2>
           {sales.length === 0 ? (
-            <p className="text-gray-500 italic text-center py-4">No sales recorded yet. Go get 'em, Christine!</p>
+            <p className="text-gray-500 italic text-center py-4">No sales recorded yet. Go get &apos;em, Christine!</p>
           ) : (
             <ul className="divide-y divide-pink-100">
               {sales.map((sale) => (
