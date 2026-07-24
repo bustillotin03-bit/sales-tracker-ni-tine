@@ -99,7 +99,7 @@ export default function Home() {
             </h2>
             <p className="text-gray-600 text-sm mb-2">Based on your recent numbers, here is where you can boost your sales today:</p>
             <div className="bg-pink-50 p-3 rounded-lg border border-pink-100 text-pink-800 font-medium text-sm">
-              Focus on: <span className="font-bold">"{lowestCategory}"</span>. You haven't logged many of these lately. Try mentioning it to your next 3 callers!
+            Focus on: <span className="font-bold">&quot;{lowestCategory}&quot;</span>. You haven&apos;t logged many of these lately.
             </div>
           </div>
         </div>
