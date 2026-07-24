@@ -18,7 +18,7 @@ const CATEGORIES = [
 ];
 
 export default function Home() {
-  const [sales, setSales] = useState([]);
+  const [sales, setSales] = useState<any[]>([]);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [usdAmount, setUsdAmount] = useState("");
 
