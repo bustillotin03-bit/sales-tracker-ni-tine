@@ -35,7 +35,7 @@ export default function Home() {
     fetchSales();
   }, []);
 
-  async function addSale(e) {
+  async function addSale(e: any) {
     e.preventDefault();
     const conversionRate = 56; // 1 USD = 56 PHP
     const commissionPercentage = 0.10; // 10% commission
