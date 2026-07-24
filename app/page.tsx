@@ -1,112 +1,153 @@
-import Image from 'next/image';
+"use client";
+
+import { useState, useEffect } from "react";
+import { supabase } from "../supabase";
+
+const CATEGORIES = [
+  "Creating New Account with an associated Service",
+  "Reinstating an account (Disconnected then Activated)",
+  "Adding Internet and Cable Service",
+  "Adding Xfinity Mobile Care Insurance",
+  "Adding Xfinity Pro",
+  "Upgrading a mobile plan (Mobile select to Mobile Plus)",
+  "Upgrading a mobile service Generation (5G to 6G)",
+  "Adding Smartphone, Smartwatch and Tablet",
+  "Adding Service Channels (TV Core, Sports & News, WST, TVplus, TvPremium)",
+  "Adding HBO Channel (For Xfinity points Exchange)",
+  "Other (Will update later)"
+];
 
 export default function Home() {
+  const [sales, setSales] = useState([]);
+  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [usdAmount, setUsdAmount] = useState("");
+
+  async function fetchSales() {
+    const { data, error } = await supabase
+      .from("xfinity_sales")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!error) setSales(data);
+  }
+
+  useEffect(() => {
+    fetchSales();
+  }, []);
+
+  async function addSale(e) {
+    e.preventDefault();
+    const conversionRate = 56; // 1 USD = 56 PHP
+    const commissionPercentage = 0.10; // 10% commission
+    const calculatedPhp = parseFloat(usdAmount) * conversionRate * commissionPercentage;
+
+    const { error } = await supabase
+      .from("xfinity_sales")
+      .insert([{
+        category: category,
+        usd_amount: parseFloat(usdAmount),
+        php_commission: calculatedPhp
+      }]);
+
+    if (!error) {
+      setUsdAmount("");
+      fetchSales(); 
+    }
+  }
+
+  // --- ANALYTICS ENGINE ---
+  const totalPhp = sales.reduce((sum, sale) => sum + Number(sale.php_commission), 0);
+  const totalUsd = sales.reduce((sum, sale) => sum + Number(sale.usd_amount), 0);
+  
+  // Find the category with the least sales to give a smart recommendation
+  const categoryCounts = sales.reduce((acc, sale) => {
+    acc[sale.category] = (acc[sale.category] || 0) + 1;
+    return acc;
+  }, {});
+  
+  let lowestCategory = CATEGORIES[0];
+  let lowestCount = Infinity;
+  
+  CATEGORIES.forEach(cat => {
+    const count = categoryCounts[cat] || 0;
+    if (count < lowestCount && cat !== "Other (Will update later)") {
+      lowestCount = count;
+      lowestCategory = cat;
+    }
+  });
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <main className="min-h-screen bg-pink-50 p-8 font-sans">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-4xl font-extrabold text-pink-600 mb-8 text-center drop-shadow-sm">
+          Christine's Xfinity Sales Tracker 🎀
+        </h1>
+
+        {/* PERFORMANCE SUMMARY DASHBOARD */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-pink-400 to-pink-500 p-6 rounded-2xl shadow-lg text-white">
+            <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+              <span>💰</span> Total Commission (PHP)
+            </h2>
+            <p className="text-4xl font-extrabold">₱{totalPhp.toFixed(2)}</p>
+            <p className="text-pink-100 mt-2 text-sm">Total Plan Value: ${totalUsd.toFixed(2)}</p>
+          </div>
+
+          <div className="bg-white border-2 border-pink-200 p-6 rounded-2xl shadow-lg">
+            <h2 className="text-xl font-bold text-pink-500 mb-2 flex items-center gap-2">
+              <span>💡</span> Christine's Smart Insights
+            </h2>
+            <p className="text-gray-600 text-sm mb-2">Based on your recent numbers, here is where you can boost your sales today:</p>
+            <div className="bg-pink-50 p-3 rounded-lg border border-pink-100 text-pink-800 font-medium text-sm">
+              Focus on: <span className="font-bold">"{lowestCategory}"</span>. You haven't logged many of these lately. Try mentioning it to your next 3 callers!
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-pink-100 mb-8">
+          <h2 className="text-2xl font-bold text-pink-500 mb-4">Log a New Sale</h2>
+          <form onSubmit={addSale} className="flex flex-col gap-4">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="border-2 border-pink-200 p-3 rounded-xl focus:outline-none focus:border-pink-400 text-gray-700 bg-pink-50/30"
+            >
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              placeholder="Original Plan Cost in USD ($)"
+              value={usdAmount}
+              onChange={(e) => setUsdAmount(e.target.value)}
+              className="border-2 border-pink-200 p-3 rounded-xl focus:outline-none focus:border-pink-400 text-gray-700 bg-pink-50/30"
+              required
+            />
+            <button type="submit" className="bg-pink-500 text-white p-4 rounded-xl font-bold text-lg hover:bg-pink-600 shadow-md transition-all">
+              Sparkle & Save Sale ✨
+            </button>
+          </form>
+        </div>
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore the Next.js 13 playground.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-pink-100">
+          <h2 className="text-2xl font-bold text-pink-500 mb-4">Recent Sales</h2>
+          {sales.length === 0 ? (
+            <p className="text-gray-500 italic text-center py-4">No sales recorded yet. Go get 'em, Christine!</p>
+          ) : (
+            <ul className="divide-y divide-pink-100">
+              {sales.map((sale) => (
+                <li key={sale.id} className="py-4 flex flex-col sm:flex-row justify-between gap-2 hover:bg-pink-50/50 px-2 rounded-lg transition-colors">
+                  <span className="text-gray-800 font-semibold">{sale.category}</span>
+                  <div className="flex flex-col sm:text-right">
+                    <span className="text-gray-500 text-sm">Plan: ${sale.usd_amount.toFixed(2)}</span>
+                    <span className="text-pink-600 font-bold">Com: ₱{sale.php_commission.toFixed(2)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </main>
   );
