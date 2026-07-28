@@ -1,33 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
+import { Trash2, Plus, PieChart, Wallet, BookOpen, Heart } from "lucide-react";
 
-// --- CHERRY BLOSSOM ANIMATION & GLASS CSS ---
 const SakuraCSS = () => (
   <style jsx global>{`
     @keyframes fall {
       0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 1; }
       100% { transform: translateY(110vh) translateX(100px) rotate(360deg); opacity: 0.3; }
     }
-    .petal {
-      position: fixed;
-      background-color: #ffb7c5;
-      border-radius: 150% 0 150% 0;
-      pointer-events: none;
-      z-index: 0;
-      animation: fall linear infinite;
-    }
-    .glass-card {
-      background: rgba(255, 255, 255, 0.75);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      box-shadow: 0 8px 32px 0 rgba(244, 114, 182, 0.2);
-    }
-    .pink-glow {
-      box-shadow: 0 0 20px rgba(244, 114, 182, 0.4);
-    }
+    .petal { position: fixed; background-color: #ffb7c5; border-radius: 150% 0 150% 0; pointer-events: none; z-index: 0; animation: fall linear infinite; }
+    .glass-card { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 8px 32px 0 rgba(244, 114, 182, 0.2); }
+    .pink-glow { box-shadow: 0 0 20px rgba(244, 114, 182, 0.4); }
     .no-scrollbar::-webkit-scrollbar { display: none; }
   `}</style>
 );
@@ -55,6 +40,7 @@ export default function Home() {
   const [sales, setSales] = useState<any[]>([]);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [usdAmount, setUsdAmount] = useState("");
+  const [isActivated, setIsActivated] = useState(false); // Checkbox state
   const [monthlyGoal] = useState(10000);
 
   useEffect(() => { fetchSales(); }, []);
@@ -68,12 +54,32 @@ export default function Home() {
     e.preventDefault();
     const conversionRate = 56;
     const calculatedPhp = parseFloat(usdAmount) * conversionRate * CATEGORY_CONFIG[category].rate;
-    // We don't need to manually add date/time here because Supabase created_at does it automatically!
-    const { error } = await supabase.from("xfinity_sales").insert([{ category, usd_amount: parseFloat(usdAmount), php_commission: calculatedPhp }]);
+    
+    // Set Status logic
+    let status = null;
+    if (category === "Smartphone, Smartwatch and Tablet") {
+      status = isActivated ? "Activated" : "Pending for activation";
+    }
+
+    const { error } = await supabase.from("xfinity_sales").insert([{ 
+      category, 
+      usd_amount: parseFloat(usdAmount), 
+      php_commission: calculatedPhp,
+      status: status
+    }]);
+
     if (!error) { 
-        setUsdAmount(""); 
-        await fetchSales(); 
-        alert("Sale successfully saved! ✨"); 
+      setUsdAmount(""); 
+      setIsActivated(false);
+      await fetchSales(); 
+      alert("Sale successfully saved! ✨"); 
+    }
+  }
+
+  async function deleteSale(id: number) {
+    if (confirm("Delete this sale entry?")) {
+      const { error } = await supabase.from("xfinity_sales").delete().eq('id', id);
+      if (!error) fetchSales();
     }
   }
 
@@ -136,16 +142,31 @@ export default function Home() {
             </div>
 
             <div className="glass-card p-6 rounded-[2rem]">
-              <h2 className="text-xl font-black text-pink-500 mb-5 flex items-center gap-2">Log a New Sale ✨</h2>
+              <h2 className="text-xl font-black text-pink-500 mb-5 flex items-center gap-2 tracking-tight">Log a New Sale ✨</h2>
               <form onSubmit={addSale} className="flex flex-col gap-4">
                 <select value={category} onChange={(e) => setCategory(e.target.value)} className="border-2 border-pink-100 p-4 rounded-2xl focus:border-pink-400 focus:outline-none bg-white/50 text-sm font-semibold">
                   {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
+
+                {/* CONDITIONAL CHECKBOX FOR HARDWARE */}
+                {category === "Smartphone, Smartwatch and Tablet" && (
+                  <div className="flex items-center gap-3 px-4 py-3 bg-white/50 rounded-2xl border-2 border-pink-100 animate-in slide-in-from-top-2">
+                    <input 
+                      type="checkbox" 
+                      id="activated"
+                      checked={isActivated}
+                      onChange={(e) => setIsActivated(e.target.checked)}
+                      className="w-5 h-5 accent-pink-500"
+                    />
+                    <label htmlFor="activated" className="text-sm font-bold text-pink-500 uppercase tracking-widest">Mark as Activated</label>
+                  </div>
+                )}
+
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-400 font-bold">$</span>
                   <input type="number" placeholder="Original Plan Cost" value={usdAmount} onChange={(e) => setUsdAmount(e.target.value)} className="w-full border-2 border-pink-100 pl-8 p-4 rounded-2xl focus:border-pink-400 focus:outline-none bg-white/50 text-sm font-semibold" required />
                 </div>
-                <button type="submit" className="bg-gradient-to-r from-pink-500 to-pink-600 text-white p-5 rounded-2xl font-black shadow-lg active:scale-95 transition-all uppercase tracking-widest text-xs pink-glow">
+                <button type="submit" className="bg-gradient-to-r from-pink-500 to-pink-600 text-white p-5 rounded-2xl font-black shadow-lg hover:shadow-pink-300/50 active:scale-95 transition-all uppercase tracking-widest text-xs pink-glow">
                   Save Sale Entry 🌸
                 </button>
               </form>
@@ -204,16 +225,31 @@ export default function Home() {
                <span className="text-xl font-black text-pink-600">₱{getFilteredSales(ledgerFilter === "today" ? "today" : parseInt(ledgerFilter)).reduce((sum, s) => sum + s.php_commission, 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
             </div>
             <div className="glass-card p-6 rounded-[2rem]">
-              <div className="divide-y divide-pink-100 max-h-[50vh] overflow-y-auto pr-2 no-scrollbar">
+              <div className="divide-y divide-pink-100 max-h-[50vh] overflow-y-auto pr-2 no-scrollbar text-gray-700">
                 {getFilteredSales(ledgerFilter === "today" ? "today" : parseInt(ledgerFilter)).length === 0 ? <p className="text-center py-10 text-pink-300 italic text-sm font-medium tracking-tighter">No sales found for this period. ✨</p> : getFilteredSales(ledgerFilter === "today" ? "today" : parseInt(ledgerFilter)).map((sale) => (
                   <div key={sale.id} className="py-4 flex justify-between items-center hover:bg-white/40 rounded-xl px-2 transition-colors">
-                    <div className="max-w-[70%] text-gray-700 font-bold text-sm truncate">{sale.category}</div>
-                    <div className="text-right">
-                        <p className="text-pink-600 font-black text-sm leading-none">₱{sale.php_commission.toFixed(2)}</p>
-                        {/* THIS LINE NOW AUTOMATICALLY SHOWS THE DATE AND TIME */}
-                        <p className="text-[9px] text-pink-400 font-black uppercase tracking-widest mt-1.5 italic">
-                            {new Date(sale.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                    <div className="max-w-[70%] font-bold">
+                      <p className="text-sm truncate">{sale.category}</p>
+                      {/* STATUS DISPLAY */}
+                      {sale.status && (
+                        <p className={`text-[8px] font-black uppercase tracking-widest ${sale.status === 'Activated' ? 'text-green-500' : 'text-orange-400'}`}>
+                          {sale.status}
                         </p>
+                      )}
+                      <p className="text-[9px] uppercase tracking-tighter text-pink-400 font-black italic">{new Date(sale.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-pink-600 font-black text-sm leading-none">₱{sale.php_commission.toFixed(2)}</p>
+                          <p className="text-[10px] text-pink-300 font-bold uppercase tracking-widest mt-1">{"Save Complete"}</p>
+                        </div>
+                        {/* TRASH ICON */}
+                        <button 
+                          onClick={() => deleteSale(sale.id)}
+                          className="p-2 text-red-200 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                     </div>
                   </div>
                 ))}
@@ -231,36 +267,36 @@ export default function Home() {
               ))}
             </div>
 
-            <div className="glass-card p-6 rounded-[2.5rem]">
+            <div className="glass-card p-6 rounded-[2.5rem] text-gray-600">
               {activeTipStage === 'seed' && (
                 <div className="space-y-4 animate-in fade-in">
-                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 tracking-widest italic">Planting the Seed 🌱</h3>
+                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 tracking-widest italic tracking-tight">Planting the Seed 🌱</h3>
                   {[
                     "Just a quick note while I pull up your file: your account is pre-approved for a special discount that gives you better service for less money. Let's fix your current concern first, and I will gladly share those details with you right after.",
                     "Before we dive into resolving your main concern today, I just noticed while pulling up your file that your account is fully eligible for a brand-new exclusive offer. It's designed to help lower your monthly statement while giving you even better service quality—let's definitely take a quick look at that right after we get this current issue sorted out for you!",
                     "While I work on fixing your connection right now, I also saw a great new offer on your account that can lower your monthly bill. Let's get your main problem solved first, and then we can check out those savings together before we finish."
                   ].map((t, i) => (
-                    <div key={i} className="p-5 bg-white/50 rounded-2xl border-l-4 border-pink-400 italic text-xs leading-relaxed font-semibold text-gray-600 shadow-sm">{"\""}{t}{"\""}</div>
+                    <div key={i} className="p-5 bg-white/50 rounded-2xl border-l-4 border-pink-400 italic text-xs leading-relaxed font-semibold shadow-sm italic">{"\""}{t}{"\""}</div>
                   ))}
                 </div>
               )}
 
               {activeTipStage === 'pitch' && (
                 <div className="space-y-4 animate-in fade-in">
-                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 tracking-widest italic">Pitching Sales 💎</h3>
+                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 tracking-widest italic tracking-tight">Pitching Sales 💎</h3>
                   {[
                     "With everyone in the house online at the same time, upgrading to our faster network speed means no more annoying lagging or buffering when you are watching your favorite shows.",
                     "Since you already use our internet every day, adding an Xfinity mobile line to your plan lets you put both services on one easy bill and cuts your total monthly phone cost down by half.",
                     "Let's get your account fully turned back on today so you don't lose your setup. Plus, if we add HBO to your package right now, you get all the best shows and movies, plus extra reward points you can use for free movie rentals."
                   ].map((t, i) => (
-                    <div key={i} className="p-5 bg-white/50 rounded-2xl border-l-4 border-pink-400 italic text-xs leading-relaxed font-semibold text-gray-600 shadow-sm">{"\""}{t}{"\""}</div>
+                    <div key={i} className="p-5 bg-white/50 rounded-2xl border-l-4 border-pink-400 italic text-xs leading-relaxed font-semibold shadow-sm italic">{"\""}{t}{"\""}</div>
                   ))}
                 </div>
               )}
 
               {activeTipStage === 'objection' && (
-                <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-2 no-scrollbar animate-in fade-in text-gray-600">
-                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 tracking-widest italic">Overcoming Objections 🛡️</h3>
+                <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-2 no-scrollbar animate-in fade-in">
+                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 tracking-widest italic tracking-tight">Overcoming Objections 🛡️</h3>
                   {[
                     { o: "It's expensive. I want my bill lower.", s: "I completely understand wanting to keep your bills low. But because this special bundle comes with a multi-service discount, it actually lowers your overall monthly out-of-pocket cost compared to paying for things separately." },
                     { o: "I'll ask my husband/wife first.", s: "I completely understand wanting to talk it over with your spouse! Since this special promotion is only active on your account today, let's go ahead and lock it in right now so you don't lose the discount. You have a full 30 days to review it on the bill together, and it's completely flexible if they prefer a different option. Sound fair?" },
@@ -269,9 +305,9 @@ export default function Home() {
                     { o: "I found a provider that offers lower cost.", s: "Other companies can look cheap at first, but once you add up hidden activation fees and equipment rentals, our Xfinity bundle actually gives you better speed and value for your money on one simple bill." },
                     { o: "Your service is already bad enough.", s: "I am so sorry you've had a frustrating experience, and that is exactly why I want to fix this for you today. Upgrading our network generation and optimizing your plan will actually give you the fast, stable connection you deserve." }
                   ].map((item, i) => (
-                    <div key={i} className="p-5 bg-white/50 rounded-2xl border-l-4 border-pink-400 shadow-sm space-y-2">
+                    <div key={i} className="p-5 bg-white/50 rounded-2xl border-l-4 border-pink-400 shadow-sm space-y-2 italic">
                       <p className="text-[9px] font-black text-pink-600 uppercase italic tracking-widest border-b border-pink-50 pb-2">Objection: {"\""}{item.o}{"\""}</p>
-                      <p className="text-xs italic leading-relaxed font-semibold">What to say: {"\""}{item.s}{"\""}</p>
+                      <p className="text-xs italic leading-relaxed font-semibold tracking-tight">What to say: {"\""}{item.s}{"\""}</p>
                     </div>
                   ))}
                 </div>
@@ -279,12 +315,12 @@ export default function Home() {
 
               {activeTipStage === 'close' && (
                 <div className="space-y-4 animate-in fade-in">
-                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 tracking-widest italic">Closing the Deal 🏆</h3>
+                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 tracking-widest italic tracking-tight">Closing the Deal 🏆</h3>
                   {[
                     "Awesome! Let's get that added to your account right now so you don't miss out on today's special discount. Would you prefer to have your confirmation sent to your email address on file, or via text message?",
                     "To make sure we have everything set up right, you're getting faster service and a lower overall monthly bill today. I've gone ahead and applied that upgrade for you. I'm just sending a quick confirmation text to your phone now—sound good?"
                   ].map((t, i) => (
-                    <div key={i} className="p-5 bg-white/50 rounded-2xl border-l-4 border-pink-400 italic text-xs leading-relaxed font-semibold text-gray-600 shadow-sm">{"\""}{t}{"\""}</div>
+                    <div key={i} className="p-5 bg-white/50 rounded-2xl border-l-4 border-pink-400 italic text-xs leading-relaxed font-semibold shadow-sm italic">{"\""}{t}{"\""}</div>
                   ))}
                 </div>
               )}
