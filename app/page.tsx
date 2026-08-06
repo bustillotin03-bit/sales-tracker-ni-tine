@@ -59,14 +59,28 @@ export default function Home() {
     if (!error) setCallHistory(data || []);
   }
 
+  // Check if current selected category needs activation checkbox
+  const needsActivation = ["4th Line", "7th Line", "12th Line", "22nd Line", "Smartwatch & Tablet idv"].includes(category);
+
   async function addSale() {
     const pts = POINT_CONFIG[category] * quantity;
     let status = null;
-    if (category === "Smartphone, Smartwatch and Tablet") { status = isActivated ? "Activated" : "Pending for activation"; }
+    
+    // Apply activation rules based on instruction
+    if (needsActivation) { 
+      status = isActivated ? "Activated" : "Pending for activation"; 
+    }
+    
     const { error } = await supabase.from("xfinity_sales").insert([{ 
       category, quantity, points: pts, php_commission: pts * 10, usd_amount: 0, status: status
     }]);
-    if (!error) { setQuantity(1); setIsActivated(false); fetchSales(); alert("Milestone Saved! 🌸"); }
+    
+    if (!error) { 
+      setQuantity(1); 
+      setIsActivated(false); 
+      fetchSales(); 
+      alert("Milestone Saved! 🌸"); 
+    }
   }
 
   async function saveCallLog() {
@@ -77,6 +91,7 @@ export default function Home() {
   async function deleteSale(id: number) { if (confirm("Delete entry?")) { await supabase.from("xfinity_sales").delete().eq('id', id); fetchSales(); } }
   async function deleteCall(id: number) { if (confirm("Delete log?")) { await supabase.from("call_history_logs").delete().eq('id', id); fetchCallHistory(); } }
 
+  // --- GENERAL SUMMARIES ---
   const totalPoints = sales.reduce((sum, s) => sum + (s.points || 0), 0);
   const goalProgress = Math.min((totalPoints / monthlyGoal) * 100, 100);
 
@@ -93,6 +108,38 @@ export default function Home() {
       return diffDays <= days;
     }).reduce((s, l) => s + l.call_count, 0);
   };
+
+  // --- FISCAL CALCULATION LOGIC ---
+  const getFiscalPeriod = () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const currentDay = now.getDate();
+
+    let startDate, endDate;
+    
+    if (currentDay <= 22) {
+      // e.g. August 10 -> July 21 to August 22
+      startDate = new Date(currentYear, currentMonth - 1, 21);
+      endDate = new Date(currentYear, currentMonth, 22, 23, 59, 59);
+    } else {
+      // e.g. August 25 -> August 21 to September 22
+      startDate = new Date(currentYear, currentMonth, 21);
+      endDate = new Date(currentYear, currentMonth + 1, 22, 23, 59, 59);
+    }
+    return { startDate, endDate };
+  };
+
+  const { startDate: fiscalStart, endDate: fiscalEnd } = getFiscalPeriod();
+  
+  const fiscalSales = sales.filter(s => {
+    const d = new Date(s.created_at);
+    return d >= fiscalStart && d <= fiscalEnd;
+  });
+
+  const fiscalTotalSales = fiscalSales.reduce((sum, s) => sum + (s.quantity || 1), 0);
+  const fiscalTotalPoints = fiscalSales.reduce((sum, s) => sum + (s.points || 0), 0);
+  const fiscalActivatedLines = fiscalSales.filter(s => s.status === 'Activated').reduce((sum, s) => sum + (s.quantity || 1), 0);
 
   return (
     <main className="min-h-screen bg-[#fff5f7] curvy-font pb-24 overflow-x-hidden text-gray-800 tracking-tight">
@@ -116,8 +163,31 @@ export default function Home() {
 
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in fade-in">
+            {/* FISCAL PERIOD CARD */}
+            <div className="glass-card p-6 text-center text-gray-800 border-2 border-pink-200">
+              <h2 className="text-[12px] font-black text-pink-500 uppercase tracking-widest mb-1">Fiscal Performance</h2>
+              <p className="text-[10px] text-pink-400 font-bold uppercase mb-4 tracking-tighter">
+                {fiscalStart.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} - {fiscalEnd.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+              </p>
+              
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-white/50 p-3 rounded-xl border border-pink-100 shadow-sm">
+                  <p className="text-[9px] font-black text-pink-400 uppercase mb-1">Sales</p>
+                  <p className="text-xl font-black text-pink-600">{fiscalTotalSales}</p>
+                </div>
+                <div className="bg-white/50 p-3 rounded-xl border border-pink-100 shadow-sm">
+                  <p className="text-[9px] font-black text-pink-400 uppercase mb-1">Points</p>
+                  <p className="text-xl font-black text-pink-600">{fiscalTotalPoints}</p>
+                </div>
+                <div className="bg-white/50 p-3 rounded-xl border border-pink-100 shadow-sm">
+                  <p className="text-[9px] font-black text-pink-400 uppercase mb-1">Activated</p>
+                  <p className="text-xl font-black text-pink-600">{fiscalActivatedLines}</p>
+                </div>
+              </div>
+            </div>
+
             <div className="glass-card p-6 text-center text-gray-800">
-              <p className="text-[10px] font-black text-pink-400 uppercase mb-1 tracking-widest">Total Earned Points</p>
+              <p className="text-[10px] font-black text-pink-400 uppercase tracking-widest mb-1">Lifetime Earned Points</p>
               <p className="text-4xl font-black text-pink-600 leading-tight">{totalPoints.toLocaleString()} PTS</p>
               <p className="text-lg font-bold text-pink-400 mt-1">₱{(totalPoints * 10).toLocaleString()}</p>
               <div className="mt-6">
@@ -134,6 +204,23 @@ export default function Home() {
                 <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full border-2 border-pink-100 p-4 rounded-2xl bg-white/50 text-sm font-semibold outline-none text-gray-800">
                   {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
+
+                {/* CONDITIONAL CHECKBOX FOR SPECIFIC LINES/DEVICES */}
+                {needsActivation && (
+                  <div className="flex items-center gap-3 px-4 py-3 bg-white/50 rounded-2xl border-2 border-pink-100 animate-in slide-in-from-top-2">
+                    <input 
+                      type="checkbox" 
+                      id="activated"
+                      checked={isActivated}
+                      onChange={(e) => setIsActivated(e.target.checked)}
+                      className="w-5 h-5 accent-pink-500"
+                    />
+                    <label htmlFor="activated" className="text-sm font-bold text-pink-500 uppercase tracking-widest">
+                      Mark as Activated
+                    </label>
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center bg-white/50 p-4 rounded-2xl border-2 border-pink-100">
                   <span className="text-sm font-bold text-pink-500 uppercase">Quantity</span>
                   <div className="flex items-center gap-4">
@@ -146,7 +233,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* RESTORED PINK GRADIENT BOX */}
             <div className="bg-gradient-to-br from-pink-500 to-pink-600 p-8 rounded-[2rem] text-white shadow-xl pink-glow border border-white/20">
               <h2 className="font-black flex items-center gap-2 mb-3 italic tracking-wider text-xs uppercase underline">Smart Insight</h2>
               <p className="text-sm leading-relaxed font-medium tracking-tight">
@@ -203,15 +289,29 @@ export default function Home() {
             <div className="divide-y divide-pink-100 max-h-[60vh] overflow-y-auto pr-2 no-scrollbar text-gray-700">
               {sales.map((sale) => (
                 <div key={sale.id} className="py-4 flex justify-between items-center group">
-                  <div className="max-w-[70%] font-bold text-gray-800"><p className="text-sm truncate">{sale.category}</p><p className="text-[9px] uppercase tracking-tighter text-pink-400 font-black italic">{new Date(sale.created_at).toLocaleString()}</p></div>
-                  <div className="flex items-center gap-4 text-right"><p className="text-pink-600 font-black text-sm">+{sale.points} PTS</p><button onClick={() => deleteSale(sale.id)} className="text-red-200 hover:text-red-500 opacity-40 group-hover:opacity-100 transition-all"><Trash2 size={16} /></button></div>
+                  <div className="max-w-[70%] font-bold text-gray-800">
+                    <p className="text-sm truncate">{sale.category}</p>
+                    {sale.status && (
+                      <p className={`text-[8px] font-black uppercase tracking-widest ${sale.status === 'Activated' ? 'text-green-500' : 'text-orange-400'}`}>
+                        {sale.status}
+                      </p>
+                    )}
+                    <p className="text-[9px] uppercase tracking-tighter text-pink-400 font-black italic">{new Date(sale.created_at).toLocaleString()}</p>
+                  </div>
+                  <div className="flex items-center gap-4 text-right">
+                    <div>
+                      <p className="text-pink-600 font-black text-sm">+{sale.points} PTS</p>
+                      <p className="text-[8px] text-gray-400 font-bold uppercase">QTY: {sale.quantity}</p>
+                    </div>
+                    <button onClick={() => deleteSale(sale.id)} className="text-red-200 hover:text-red-500 opacity-40 group-hover:opacity-100 transition-all"><Trash2 size={16} /></button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {activeTab === 'analytics' && (activeTab === 'analytics') && (
+        {activeTab === 'analytics' && (
           <div className="glass-card p-8 rounded-[2.5rem] animate-in fade-in text-gray-800">
             <h3 className="font-black text-pink-500 mb-6 text-center uppercase tracking-widest text-[11px] border-b border-pink-100 pb-4 tracking-tighter">Category Tracking</h3>
             <div className="space-y-6">
@@ -249,7 +349,7 @@ export default function Home() {
               )}
               {activeTipStage === 'pitch' && (
                 <div className="space-y-4 animate-in fade-in">
-                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 tracking-widest leading-none">Pitching Sales 💎</h3>
+                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 italic tracking-widest leading-none">Pitching Sales 💎</h3>
                   {[
                     "With everyone in the house online at the same time, upgrading to our faster network speed means no more annoying lagging or buffering when you are watching your favorite shows.",
                     "Since you already use our internet every day, adding an Xfinity mobile line to your plan lets you put both services on one easy bill and cuts your total monthly phone cost down by half.",
@@ -259,7 +359,7 @@ export default function Home() {
               )}
               {activeTipStage === 'objection' && (
                 <div className="space-y-4 animate-in fade-in">
-                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 tracking-widest leading-none">Handling Objections 🛡️</h3>
+                  <h3 className="text-pink-600 font-black text-xs uppercase text-center mb-4 italic tracking-widest leading-none">Handling Objections 🛡️</h3>
                   {[
                     { o: "It's expensive.", s: "I understand! But because this special bundle comes with a multi-service discount, it actually lowers your overall monthly out-of-pocket cost." },
                     { o: "I'll ask my spouse.", s: "I get it! Since this is only active today, let's lock it in now. You have 30 days to review it together and it's completely flexible!" }
