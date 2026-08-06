@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffb7c5" />
+      <stop offset="100%" stop-color="#ff85a2" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <text x="50%" y="35%" font-family="system-ui, sans-serif" font-size="140" text-anchor="middle" dominant-baseline="middle">🌸</text>
+  <text x="50%" y="60%" font-family="system-ui, sans-serif" font-size="80" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">Christine&#39;s Sales Tracker</text>
+  <text x="50%" y="75%" font-family="system-ui, sans-serif" font-size="40" font-weight="500" fill="#ffffff" opacity="0.9" text-anchor="middle" dominant-baseline="middle">Performance Dashboard</text>
+</svg>
